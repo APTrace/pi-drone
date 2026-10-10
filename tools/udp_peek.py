@@ -66,9 +66,9 @@ def main() -> None:
                 last_print = now
                 flags = ("ARM " if cmd.arm else "--- ") + ("KILL" if cmd.kill else "----")
                 print(
-                    f"\r{rate:5.1f} Hz  gap max {shown_gap * 1000:4.0f} ms  seq {cmd.seq:6d}  "
-                    f"T {cmd.throttle:.2f} R {cmd.roll:+.2f} P {cmd.pitch:+.2f} Y {cmd.yaw:+.2f}  "
-                    f"{flags}  bad {bad}",
+                    f"\r{rate:4.1f}Hz gap{shown_gap * 1000:4.0f}ms #{cmd.seq:<6d} "
+                    f"T{cmd.throttle:.2f} R{cmd.roll:+.2f} P{cmd.pitch:+.2f} Y{cmd.yaw:+.2f} "
+                    f"{flags} bad{bad}",
                     end="", flush=True,
                 )
     except KeyboardInterrupt:
