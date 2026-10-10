@@ -13,6 +13,23 @@ import time
 from common.ground_link import DEFAULT_PORT, decode
 
 
+def summarize(gaps: list[float]) -> None:
+    """Print the distribution of gaps between packets (ideal at 50 Hz: 20 ms)."""
+    if not gaps:
+        return
+    ms = sorted(g * 1000 for g in gaps)
+    n = len(ms)
+
+    def pct(p):                       # p-th percentile: the value p % of gaps are below
+        return ms[min(n - 1, int(p / 100 * n))]
+
+    print(f"{n} gaps over {sum(ms) / 1000:.0f} s:  median {pct(50):.0f} ms   "
+          f"99th pct {pct(99):.0f} ms   max {ms[-1]:.0f} ms")
+    for limit in (50, 100, 150, 200):
+        count = sum(1 for g in ms if g > limit)
+        print(f"   gaps > {limit:3d} ms: {count}")
+
+
 def main() -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("0.0.0.0", DEFAULT_PORT))   # 0.0.0.0 = accept on every network interface
@@ -28,6 +45,7 @@ def main() -> None:
     rate = 0.0
     shown_gap = 0.0
     last_print = 0.0
+    gaps = []                              # every inter-packet gap, for the summary at the end
     try:
         while True:
             try:
@@ -50,9 +68,12 @@ def main() -> None:
             if cmd.session != session:
                 session = cmd.session
                 print(f"\nNew session {session} from {addr[0]}")
+                last_arrival = None                # a pause between runs is not a Wi-Fi gap
 
             if last_arrival is not None:
-                window_max_gap = max(window_max_gap, now - last_arrival)
+                gap = now - last_arrival
+                gaps.append(gap)
+                window_max_gap = max(window_max_gap, gap)
             last_arrival = now
             window_count += 1
 
@@ -73,6 +94,7 @@ def main() -> None:
                 )
     except KeyboardInterrupt:
         print(f"\nStopped. {good} good packets, {bad} rejected.")
+        summarize(gaps)
 
 
 if __name__ == "__main__":
