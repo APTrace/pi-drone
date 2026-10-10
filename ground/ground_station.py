@@ -1,5 +1,8 @@
 """Ground station: keyboard -> Command -> 26-byte UDP packet -> Pi, 50 times per second.
 
+Two threads: this file is the UI thread (window, keys, drawing); ground/sender.py is the
+sender thread, which keeps sending even while the window is frozen (e.g. being dragged).
+
 Run from the repo root (with the venv active):
     python -m ground.ground_station                     # sends to drone.local
     python -m ground.ground_station --host 192.168.1.24 # if the name doesn't resolve
@@ -16,13 +19,13 @@ Keys (only while this window has focus):
 import argparse
 import random
 import socket
-import time
 
 import pygame
 
 from common.gapstats import summarize
-from common.ground_link import DEFAULT_PORT, encode
+from common.ground_link import DEFAULT_PORT
 from ground.controls import Controls, Inputs
+from ground.sender import Sender
 
 STICK = 0.3   # stick deflection while an arrow / A / D is held (gentle on purpose)
 
@@ -92,14 +95,13 @@ def main() -> None:
     big = pygame.font.SysFont("consolas", 30, bold=True)
     clock = pygame.time.Clock()
 
-    sent = errors = 0
-    send_gaps = []        # time between our own sends: is the SENDER steady?
-    last_send = None
-    last_error = ""
+    sender = Sender(sock, (ip, args.port), rate=args.rate)
+    sender.start()                                # worker B starts sending in the background
+
     running = True
     while running:
-        # tick() sleeps just long enough to hold the loop at `rate` Hz, and returns ms since last call.
-        dt = clock.tick(args.rate) / 1000.0
+        # The UI only needs to keep up with human eyes and fingers; 50 fps is plenty.
+        dt = clock.tick(50) / 1000.0
 
         for event in pygame.event.get():          # must be drained every frame or Windows says "Not responding"
             if event.type == pygame.QUIT:
@@ -107,19 +109,9 @@ def main() -> None:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
 
-        # 1. input -> 2. state -> 3. bytes -> 4. network. One full command every frame.
+        # 1. input -> 2. state -> 3. hand to the sender. The UI never touches the network itself.
         cmd = controls.update(read_keyboard(), dt)
-        try:
-            sock.sendto(encode(cmd), (ip, args.port))
-            sent += 1
-            t = time.perf_counter()
-            if last_send is not None:
-                send_gaps.append(t - last_send)
-            last_send = t
-        except OSError as e:
-            # e.g. Wi-Fi turned off: keep running, show it, let the Pi's failsafe do its job.
-            errors += 1
-            last_error = str(e)[:60]
+        sender.publish(cmd)
 
         # --- display ---
         screen.fill(BG)
@@ -139,17 +131,18 @@ def main() -> None:
         draw_bar(screen, font, 115, 166, "yaw", cmd.yaw, -1, 1)
 
         screen.blit(font.render(controls.message, True, FG), (20, 210))
-        info = f"to {ip}:{args.port}  session {session}  seq {cmd.seq}  {clock.get_fps():4.1f} Hz"
+        info = f"to {ip}:{args.port}  session {session}  seq {sender.seq}  sender: {sender.state}"
         screen.blit(font.render(info, True, DIM), (20, 245))
-        err_txt = f"send errors: {errors}" + (f"  ({last_error})" if errors else "")
-        screen.blit(font.render(err_txt, True, RED if errors else DIM), (20, 270))
+        err_txt = f"send errors: {sender.errors}" + (f"  ({sender.last_error})" if sender.errors else "")
+        screen.blit(font.render(err_txt, True, RED if sender.errors else DIM), (20, 270))
         screen.blit(font.render("W/S thr  arrows  A/D yaw  E arm  Q disarm  SPACE kill", True, DIM), (20, 300))
         pygame.display.flip()
 
     # No "goodbye" packet on purpose: stopping = silence, and the Pi's failsafe must handle silence.
+    sender.stop()
     pygame.quit()
-    print(f"Stopped. Sent {sent} packets, {errors} send errors.")
-    summarize(send_gaps, "Sends from PC")
+    print(f"Stopped. Sent {sender.sent} packets, {sender.errors} send errors.")
+    summarize(sender.send_gaps, "Sends from PC")
 
 
 if __name__ == "__main__":

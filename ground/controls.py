@@ -33,7 +33,6 @@ class Controls:
 
     def __init__(self, session: int):
         self.session = session
-        self.seq = 0
         self.throttle = 0.0
         self.arm = False
         self.kill = False
@@ -66,10 +65,9 @@ class Controls:
                 else:
                     self.message = "Can't arm: bring throttle to 0 first (hold S)."
 
-        self.seq += 1
         return Command(
             throttle=self.throttle,
             roll=inp.roll, pitch=inp.pitch, yaw=inp.yaw,   # sticks: passed through, they self-centre
             arm=self.arm, kill=self.kill,
-            session=self.session, seq=self.seq,
+            session=self.session,   # seq is filled in by the sender thread, one per packet
         )

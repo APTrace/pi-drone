@@ -50,10 +50,9 @@ def test_kill_latches_until_rearm():
     assert cmd.arm and not cmd.kill
 
 
-def test_seq_increments():
+def test_session_passed_through():
     c = Controls(session=7)
-    a, b = c.update(Inputs(), DT), c.update(Inputs(), DT)
-    assert (a.seq, b.seq, b.session) == (1, 2, 7)
+    assert c.update(Inputs(), DT).session == 7
 
 
 if __name__ == "__main__":
