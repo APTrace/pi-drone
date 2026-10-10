@@ -111,9 +111,9 @@ class SafetyManager:
                     self.state = "ARMED"
                     self._event("ARMED")
                 else:
-                    self.state = "DISARMED (throttle not 0)"
+                    self.state = "DISARMED thr>0"
             elif age > LEVEL_AFTER:
-                self.state = "DISARMED (link lost)"
+                self.state = "DISARMED no link"
             return OFF
 
         # Armed: Rule 1, the staged failsafe, chosen by how old the newest command is.
