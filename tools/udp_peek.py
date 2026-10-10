@@ -10,24 +10,8 @@ receiver (pi/receiver.py, next piece) never waits.
 import socket
 import time
 
+from common.gapstats import summarize
 from common.ground_link import DEFAULT_PORT, decode
-
-
-def summarize(gaps: list[float]) -> None:
-    """Print the distribution of gaps between packets (ideal at 50 Hz: 20 ms)."""
-    if not gaps:
-        return
-    ms = sorted(g * 1000 for g in gaps)
-    n = len(ms)
-
-    def pct(p):                       # p-th percentile: the value p % of gaps are below
-        return ms[min(n - 1, int(p / 100 * n))]
-
-    print(f"{n} gaps over {sum(ms) / 1000:.0f} s:  median {pct(50):.0f} ms   "
-          f"99th pct {pct(99):.0f} ms   max {ms[-1]:.0f} ms")
-    for limit in (50, 100, 150, 200):
-        count = sum(1 for g in ms if g > limit)
-        print(f"   gaps > {limit:3d} ms: {count}")
 
 
 def main() -> None:
@@ -45,6 +29,8 @@ def main() -> None:
     rate = 0.0
     shown_gap = 0.0
     last_print = 0.0
+    lost = 0
+    last_seq = None
     gaps = []                              # every inter-packet gap, for the summary at the end
     try:
         while True:
@@ -69,6 +55,11 @@ def main() -> None:
                 session = cmd.session
                 print(f"\nNew session {session} from {addr[0]}")
                 last_arrival = None                # a pause between runs is not a Wi-Fi gap
+                last_seq = None
+
+            if last_seq is not None and cmd.seq > last_seq + 1:
+                lost += cmd.seq - last_seq - 1     # seq jumped: packets in between never arrived
+            last_seq = cmd.seq
 
             if last_arrival is not None:
                 gap = now - last_arrival
@@ -93,8 +84,8 @@ def main() -> None:
                     end="", flush=True,
                 )
     except KeyboardInterrupt:
-        print(f"\nStopped. {good} good packets, {bad} rejected.")
-        summarize(gaps)
+        print(f"\nStopped. {good} good packets, {bad} rejected, {lost} lost (seq jumps).")
+        summarize(gaps, "Arrivals at Pi")
 
 
 if __name__ == "__main__":

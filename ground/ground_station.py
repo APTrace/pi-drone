@@ -16,9 +16,11 @@ Keys (only while this window has focus):
 import argparse
 import random
 import socket
+import time
 
 import pygame
 
+from common.gapstats import summarize
 from common.ground_link import DEFAULT_PORT, encode
 from ground.controls import Controls, Inputs
 
@@ -91,6 +93,8 @@ def main() -> None:
     clock = pygame.time.Clock()
 
     sent = errors = 0
+    send_gaps = []        # time between our own sends: is the SENDER steady?
+    last_send = None
     last_error = ""
     running = True
     while running:
@@ -108,6 +112,10 @@ def main() -> None:
         try:
             sock.sendto(encode(cmd), (ip, args.port))
             sent += 1
+            t = time.perf_counter()
+            if last_send is not None:
+                send_gaps.append(t - last_send)
+            last_send = t
         except OSError as e:
             # e.g. Wi-Fi turned off: keep running, show it, let the Pi's failsafe do its job.
             errors += 1
@@ -141,6 +149,7 @@ def main() -> None:
     # No "goodbye" packet on purpose: stopping = silence, and the Pi's failsafe must handle silence.
     pygame.quit()
     print(f"Stopped. Sent {sent} packets, {errors} send errors.")
+    summarize(send_gaps, "Sends from PC")
 
 
 if __name__ == "__main__":
