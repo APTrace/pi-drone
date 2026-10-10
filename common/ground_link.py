@@ -21,6 +21,7 @@ from dataclasses import dataclass
 
 MAGIC = b"DR"
 VERSION = 1
+DEFAULT_PORT = 5005   # UDP port the Pi listens on (any number above 1023 would do)
 
 FLAG_ARM = 0b01
 FLAG_KILL = 0b10
