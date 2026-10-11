@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# KiCad local/temporary files
+*.kicad_prl
+*-backups/
+fp-info-cache
+*.lck
+\#auto_saved_files#
+_autosave-*
+
+# KiCad 10 local history (is its own git repo)
+.history/
