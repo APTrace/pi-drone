@@ -88,10 +88,10 @@ def main() -> None:
             loop.step(now)
 
             for event in loop.safety.pop_events():
-                print("\r" + f"[{now - start:7.2f} s] {event}".ljust(78))
+                print("\r" + f"[{now - start:7.2f} s] {event}".ljust(80))
             if i % display_every == 0:
                 m = "  ".join(f"{name} {_bar(d)} {d:.2f}" for name, d in zip(MOTORS, loop.duties))
-                print(f"\r{loop.safety.state:<9} {m}", end="", flush=True)
+                print(f"\r{loop.safety.state:<16.16} {m}", end="", flush=True)
             i += 1
 
             next_t += period
