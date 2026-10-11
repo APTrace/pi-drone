@@ -229,3 +229,6 @@ _autosave-*
 
 # KiCad 10 local history (is its own git repo)
 .history/
+
+# KiCad nackup files
+*.bak
