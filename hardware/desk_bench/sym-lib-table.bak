@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "drone_parts") (type "KiCad") (uri "${KIPRJMOD}/drone_parts.kicad_sym") (options "") (descr ""))
+)
